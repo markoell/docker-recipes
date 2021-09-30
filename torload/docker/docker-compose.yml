@@ -1,0 +1,40 @@
+---
+version: "3.8"
+networks:
+  darknet:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+          gateway: 172.20.0.1
+
+services:
+  tor:
+    build: ./tor
+    image: tor:mk
+    container_name: tor
+    environment:
+      - TZ=Europe/Berlin
+    expose:
+      - 9050
+    networks:
+      darknet:
+        ipv4_address: 172.20.0.2
+  pyload:
+    image: ghcr.io/linuxserver/pyload
+    container_name: pyload
+    depends_on:
+      - tor
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Berlin
+    networks:
+      darknet:
+        ipv4_address: 172.20.0.3
+    volumes:
+      - ~/dockers/torload/config:/config
+      - ~/ftp/files/torload:/downloads
+    ports:
+      - 8000:8000
+      #- 7227:7227 #optional
+    restart: unless-stopped
