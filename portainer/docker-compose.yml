@@ -9,4 +9,4 @@ services:
       - 9443:9443
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./portainerdata:/data
+      - ~/dockers/portainer/portainerdata:/data
