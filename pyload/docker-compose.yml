@@ -1,0 +1,16 @@
+---
+version: '2.1'
+services:
+  pyload-ng:
+    image: lscr.io/linuxserver/pyload-ng
+    container_name: pyload-ng
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Berlin
+    volumes:
+      - ~/dockers/pyload/config:/config
+      - ~/ftp/files/pyload:/downloads
+    ports:
+      - 8000:8000
+    restart: unless-stopped
