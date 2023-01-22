@@ -35,6 +35,6 @@ services:
       - /srv/dev-disk-by-uuid-e817413f-a955-45d4-94e8-7e3d5a7df046/Pyload/config:/config
       - /srv/dev-disk-by-uuid-e817413f-a955-45d4-94e8-7e3d5a7df046/Pyload/downloads:/downloads
     ports:
-      - 8000:8000
-      #- 7227:7227 #optional
+      - 8100:8000
+      - 9666:9666 #optional
     restart: unless-stopped
