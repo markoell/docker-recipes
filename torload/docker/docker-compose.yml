@@ -1,11 +1,5 @@
 ---
 version: "2.1"
-networks:
-  darknet:
-    ipam:
-      config:
-        - subnet: 172.20.0.0/24
-          gateway: 172.20.0.1
 
 services:
   tor:
@@ -16,9 +10,6 @@ services:
       - TZ=Europe/Berlin
     expose:
       - 9050
-    networks:
-      darknet:
-        ipv4_address: 172.20.0.2
   pyload:
     image: lscr.io/linuxserver/pyload-ng:arm64v8-latest
     container_name: pyload-ng
@@ -28,9 +19,6 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/Berlin
-    networks:
-      darknet:
-        ipv4_address: 172.20.0.3
     volumes:
       - /srv/dev-disk-by-uuid-e817413f-a955-45d4-94e8-7e3d5a7df046/Pyload/config:/config
       - /srv/dev-disk-by-uuid-e817413f-a955-45d4-94e8-7e3d5a7df046/Pyload/downloads:/downloads
