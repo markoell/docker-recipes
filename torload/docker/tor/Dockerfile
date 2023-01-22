@@ -1,5 +1,5 @@
 # set alpine as the base image of the Dockerfile
-FROM alpine:3.14
+FROM alpine:3.17
 
 EXPOSE 9050
 

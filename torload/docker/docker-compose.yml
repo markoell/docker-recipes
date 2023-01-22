@@ -20,8 +20,8 @@ services:
       darknet:
         ipv4_address: 172.20.0.2
   pyload:
-    image: ghcr.io/linuxserver/pyload
-    container_name: pyload
+    image: lscr.io/linuxserver/pyload-ng:latest
+    container_name: pyload-ng
     depends_on:
       - tor
     environment:
