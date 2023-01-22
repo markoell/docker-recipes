@@ -10,7 +10,7 @@ networks:
 services:
   tor:
     build: ./tor
-    image: tor:mk
+    image: tor:arm64v8
     container_name: tor
     environment:
       - TZ=Europe/Berlin
@@ -20,7 +20,7 @@ services:
       darknet:
         ipv4_address: 172.20.0.2
   pyload:
-    image: lscr.io/linuxserver/pyload-ng:latest
+    image: lscr.io/linuxserver/pyload-ng:arm64v8-latest
     container_name: pyload-ng
     depends_on:
       - tor
@@ -32,8 +32,8 @@ services:
       darknet:
         ipv4_address: 172.20.0.3
     volumes:
-      - ~/dockers/torload/config:/config
-      - ~/ftp/files/torload:/downloads
+      - /srv/dev-disk-by-uuid-e817413f-a955-45d4-94e8-7e3d5a7df046/Pyload/config:/config
+      - /srv/dev-disk-by-uuid-e817413f-a955-45d4-94e8-7e3d5a7df046/Pyload/downloads:/downloads
     ports:
       - 8000:8000
       #- 7227:7227 #optional

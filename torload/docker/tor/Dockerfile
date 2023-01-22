@@ -1,5 +1,5 @@
 # set alpine as the base image of the Dockerfile
-FROM alpine:3.17
+FROM arm64v8/alpine:latest
 
 EXPOSE 9050
 
