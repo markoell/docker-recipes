@@ -1,0 +1,19 @@
+version: "2.1"
+services:
+  duplicati:
+    image: lscr.io/linuxserver/duplicati:latest
+    container_name: duplicati
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./config:/config
+      - CHANGE_TO_COMPOSE_DATA_PATH/duplicati/backups:/backups
+      - CHANGE_TO_COMPOSE_DATA_PATH:/source
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.duplicati.rule=Host(`duplicati.omv.kllnr.de`)"
+      - "traefik.http.routers.duplicati.entrypoints=websecure"
+      - "traefik.http.routers.duplicati.tls.certresolver=omv_certresolver"
+    restart: unless-stopped
