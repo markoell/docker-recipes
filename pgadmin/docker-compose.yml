@@ -1,0 +1,16 @@
+services:
+  service_name:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin4
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - pgadmin4-data:/var/lib/pgadmin
+    environment:
+      - TZ=${TZ}
+      - "PGADMIN_DEFAULT_EMAIL=${EMAIL}"
+      - "PGADMIN_DEFAULT_PASSWORD=${PASSWORD}"
+
+volumes:
+  pgadmin4-data:
