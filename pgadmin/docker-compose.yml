@@ -1,3 +1,5 @@
+name: pgadmin
+
 services:
   service_name:
     image: dpage/pgadmin4:latest

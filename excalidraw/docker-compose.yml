@@ -1,0 +1,14 @@
+name: excalidraw
+
+services:
+  excalidraw:
+    image: excalidraw/excalidraw:latest
+    container_name: excalidraw
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - excalidraw_data:/data
+    restart: unless-stopped
+
+volumes:
+  excalidraw_data:
