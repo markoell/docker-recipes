@@ -1,4 +1,4 @@
-version: "2.1"
+name: duplicati
 services:
   duplicati:
     image: lscr.io/linuxserver/duplicati:latest
