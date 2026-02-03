@@ -1,0 +1,74 @@
+services:
+  # Note: MariaDB is an external service. You can find more information about the configuration here:
+  # https://hub.docker.com/_/mariadb
+  db:
+    # Note: Check the recommend version here: https://docs.nextcloud.com/server/latest/admin_manual/installation/system_requirements.html#server
+    image: mariadb:lts
+    restart: unless-stopped
+    command: --transaction-isolation=READ-COMMITTED
+    volumes:
+      - db:/var/lib/mysql
+    environment:
+      - PUID=${APPUSER_PUID}
+      - PGID=${APPUSER_PGID}
+      - TZ=${TIME_ZONE_VALUE}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+
+  # Note: Redis is an external service. You can find more information about the configuration here:
+  # https://hub.docker.com/_/redis
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    environment:
+      - PUID=${APPUSER_PUID}
+      - PGID=${APPUSER_PGID}
+      - TZ=${TIME_ZONE_VALUE}
+
+  app:
+    image: nextcloud:32.0-fpm-alpine
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - db
+    volumes:
+      - nextcloud:/var/www/html
+      - ${PATH_TO_DATA}/nextcloud/data:/data
+    environment:
+      - PUID=${APPUSER_PUID}
+      - PGID=${APPUSER_PGID}
+      - TZ=${TIME_ZONE_VALUE}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_HOST=db
+
+  # Note: Nginx is an external service. You can find more information about the configuration here:
+  # https://hub.docker.com/_/nginx/
+  web:
+    image: nginx:alpine-slim
+    restart: unless-stopped
+    ports:
+    #  - 8080:80
+    depends_on:
+      - app
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nextcloud.rule=Host(`nextcloud.omv.kllnr.de`)"
+      - "traefik.http.routers.nextcloud.entrypoints=websecure"
+      - "traefik.http.routers.nextcloud.tls.certresolver=omv_certresolver"
+    environment:
+      - PUID=${APPUSER_PUID}
+      - PGID=${APPUSER_PGID}
+      - TZ=${TIME_ZONE_VALUE}
+    volumes:
+      # https://docs.nextcloud.com/server/latest/admin_manual/installation/nginx.html
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro 
+    volumes_from:
+      - app
+
+volumes:
+  nextcloud:
+  db:
