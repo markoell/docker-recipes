@@ -1,0 +1,21 @@
+services:
+  dummy:
+    image: nginx:latest
+    user: "${PUID}:${PGID}"
+    read_only: true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+      - /run
+      - /var/run
+    networks:
+      - dummy-secure_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dummysecure.rule=Host(`dummysecure.srv.kllnr.de`)"
+      - "traefik.http.routers.dummysecure.certresolver=dns_certresolver"
+
+networks:
+  dummy-secure_proxy:
+    external: true

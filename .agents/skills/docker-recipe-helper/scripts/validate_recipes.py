@@ -68,17 +68,6 @@ def validate_recipe(recipe_dir, compose_file):
         print_err(f"[{recipe_name}] 'services' section must be a dictionary")
         return 1, 0
 
-    # Validate global networks
-    global_networks = data.get('networks', {})
-    has_global_proxy_network = False
-    if isinstance(global_networks, dict) and 'proxy' in global_networks:
-        proxy_config = global_networks['proxy']
-        if isinstance(proxy_config, dict) and proxy_config.get('external') is True:
-            has_global_proxy_network = True
-        elif proxy_config is None: # empty dict or value
-            # For Traefik's own compose, it defines it but not as external.
-            has_global_proxy_network = True
-
     for service_name, service_config in services.items():
         if not service_config or not isinstance(service_config, dict):
             continue
@@ -90,24 +79,42 @@ def validate_recipe(recipe_dir, compose_file):
             print_err(f"[{recipe_name}] Service '{service_name}' specifies network_mode: 'host' but also defines 'ports', which is ignored and syntactically invalid")
             errors += 1
 
-        # 3. Validate PUID / PGID / TZ in environment
-        env = service_config.get('environment', [])
-        env_dict = {}
-        if isinstance(env, list):
-            for item in env:
-                if isinstance(item, str) and '=' in item:
-                    k, v = item.split('=', 1)
-                    env_dict[k.strip()] = v.strip()
-        elif isinstance(env, dict):
-            env_dict = env
+        # 3. Security Checks (user, read_only, cap_drop)
+        # Check user
+        user = service_config.get('user')
+        if user != "${PUID}:${PGID}":
+            print_err(f"[{recipe_name}] Service '{service_name}' must explicitly set user: \"${{PUID}}:${{PGID}}\" for strict rootless security")
+            errors += 1
+            
+        # Check read_only
+        if service_config.get('read_only') is not True:
+            print_err(f"[{recipe_name}] Service '{service_name}' must set read_only: true")
+            errors += 1
+            
+        # Check cap_drop
+        cap_drop = service_config.get('cap_drop', [])
+        if 'ALL' not in cap_drop:
+            print_err(f"[{recipe_name}] Service '{service_name}' must explicitly drop all capabilities (cap_drop: - ALL)")
+            errors += 1
 
-        for var_name in ['PUID', 'PGID', 'TZ']:
-            val = env_dict.get(var_name)
-            if val is not None:
-                expected_placeholder = f"${{{var_name}}}"
-                if val != expected_placeholder and val != f"${var_name}":
-                    print_warn(f"[{recipe_name}] Service '{service_name}' has hardcoded environment variable {var_name}='{val}' instead of standard placeholder '{expected_placeholder}'")
-                    warnings += 1
+        # Check tmpfs if read_only is true
+        if service_config.get('read_only') is True:
+            tmpfs = service_config.get('tmpfs', [])
+            has_tmp_mount = False
+            if tmpfs:
+                has_tmp_mount = True
+            else:
+                volumes = service_config.get('volumes', [])
+                if isinstance(volumes, list):
+                    for v in volumes:
+                        if isinstance(v, str):
+                            parts = v.split(':')
+                            if len(parts) >= 2 and (parts[1] == '/tmp' or parts[1] == '/run' or parts[1] == '/var/run'):
+                                has_tmp_mount = True
+                
+            if not has_tmp_mount:
+                print_err(f"[{recipe_name}] Service '{service_name}' is read_only but provides no tmpfs or volume mounts for transient directories like /tmp or /run")
+                errors += 1
 
         # 4. Validate Traefik labels & Proxy network requirement
         labels = service_config.get('labels', [])
@@ -153,21 +160,22 @@ def validate_recipe(recipe_dir, compose_file):
                             print_err(f"[{recipe_name}] Service '{service_name}' uses wrong certresolver '{v}' in label '{k}'. Must use 'dns_certresolver'")
                             errors += 1
 
-        # 5. Check if service is connected to proxy network when Traefik is enabled
+        # 5. Check network isolation when Traefik is enabled
+        service_networks = service_config.get('networks', [])
+        service_network_list = []
+        if isinstance(service_networks, list):
+            service_network_list = service_networks
+        elif isinstance(service_networks, dict):
+            service_network_list = list(service_networks.keys())
+
+        if 'proxy' in service_network_list:
+            print_err(f"[{recipe_name}] Service '{service_name}' uses the legacy shared 'proxy' network. Must use an isolated network named '{recipe_name}_proxy'")
+            errors += 1
+
         if is_traefik_enabled and recipe_name != 'traefik':
-            service_networks = service_config.get('networks', [])
-            is_connected_to_proxy = False
-            if isinstance(service_networks, list):
-                is_connected_to_proxy = 'proxy' in service_networks
-            elif isinstance(service_networks, dict):
-                is_connected_to_proxy = 'proxy' in service_networks
-
-            if not is_connected_to_proxy:
-                print_err(f"[{recipe_name}] Service '{service_name}' is enabled for Traefik but is not connected to the 'proxy' network")
-                errors += 1
-
-            if not has_global_proxy_network:
-                print_err(f"[{recipe_name}] Service '{service_name}' uses the 'proxy' network but the network is not defined globally as external in this compose file")
+            expected_network = f"{recipe_name}_proxy"
+            if expected_network not in service_network_list:
+                print_err(f"[{recipe_name}] Service '{service_name}' is enabled for Traefik but is not connected to its isolated network '{expected_network}'")
                 errors += 1
 
         # 6. Validate volumes

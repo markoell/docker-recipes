@@ -1,25 +1,29 @@
 # Workspace Guidelines: Docker Recipes
 
-This repository contains personal Docker and Docker Compose configurations, organized as a monorepo where each subdirectory is a standalone recipe.
+This repository contains personal Docker and Docker Compose configurations, organized as a monorepo where each subdirectory is a standalone recipe. We enforce a **Security & Isolation First** philosophy.
 
 ## 1. Directory Structure & File Naming
-* Each subdirectory represents one recipe (e.g., `traefik`, `pi-hole`, `duplicati`).
-* Inside each subdirectory, there must be a Docker Compose file named exactly `compose.yaml`. The legacy `docker-compose.yml` name must not be used.
-* Optional environment file `.env` can be placed in the same folder if needed.
-* Do not specify the obsolete/deprecated `version` header in any `compose.yaml` files.
+* Each subdirectory represents one recipe.
+* Inside each subdirectory, the Docker Compose file must be named exactly `compose.yaml`. The legacy `docker-compose.yml` is forbidden.
+* Do not specify the obsolete `version` header.
+* Environment file `.env` can be placed in the same folder if needed.
 
-## 2. Environment Variables & Volume Mounts
-* **PUID / PGID**: Use `${PUID}` and `${PGID}` instead of hardcoded UID/GID.
-* **Time Zone**: Use `${TZ}`.
-* **Local Paths (Lightweight)**: For lightweight configs/databases, relative paths within the recipe directory (e.g., `./config` or `./data`) must be used.
-* **Persistent Paths (Heavy)**: For heavy persistent data (like media, downloads, backups), use the environment variable `${DATA_PATH}/<recipe-name>/...`.
-* **System/Monitoring Mounts**: Host system paths (e.g., `/proc`, `/sys`, `/dev`, `/var/lib/docker`, `/etc/machine-id`, `/var/run/docker.sock`) are whitelisted only for system monitoring or daemon integration services (such as `cadvisor` and `node-exporter`).
+## 2. Rootless, Permissions & Filesystems
+We prioritize strict container lockdown:
+* **User Directive**: Every service must explicitly declare `user: "${PUID}:${PGID}"` (unless using a scratch/rootless specific image that breaks otherwise, but by default it is required).
+* **Capabilities**: Every service must drop all capabilities using `cap_drop: - ALL`.
+* **Read-Only Root**: Every service must declare `read_only: true` for its root filesystem.
+* **Transient State**: Because the root filesystem is read-only, services must use `tmpfs` mounts for `/tmp`, `/var/run`, or `/run` to function.
 
-## 3. Traefik Routing & Network Conventions
-When exposing a service via Traefik:
-* **Network Mode**: Traefik runs on a shared Docker bridge network named `proxy`. All services routed by Traefik must join this network (declared as `external: true` in their compose files).
-* **Traefik Network Configuration**: Traefik must be configured with `--providers.docker.network=proxy` to ensure correct routing for multi-network containers.
-* **Enable Label**: Enable Traefik with the label `"traefik.enable=true"`.
-* **Router Names**: Always ensure that the router name prefix in the labels (e.g., `traefik.http.routers.<router-name>`) matches the recipe subdirectory name or service name. Avoid copy-pasting labels.
-* **Domain Name**: Use host pattern `<subdomain>.srv.kllnr.de` (e.g., `"traefik.http.routers.pihole.rule=Host(\`pihole.srv.kllnr.de\`)"`).
-* **SSL Resolvers**: By default, use `dns_certresolver` and entrypoint `websecure`.
+## 3. Persistent Volumes
+* **Local Paths**: For lightweight configs, use relative paths (`./config` or `./data`).
+* **Persistent Paths**: For heavy data, use `${DATA_PATH}/<recipe-name>/...`.
+* **System Mounts**: Host paths like `/proc` or `/sys` are strictly whitelisted only for monitoring tools.
+
+## 4. Isolated Proxy Networks & Traefik
+We avoid a globally shared network for exposed services.
+* **Isolated Networks**: Each exposed service must use its own dedicated proxy bridge network. The network must be named exactly `<recipe_name>_proxy`.
+* **Enable Label**: `"traefik.enable=true"`.
+* **Router Names**: Router name prefix (`traefik.http.routers.<router-name>`) must match the recipe or service name.
+* **Domain Name**: Use `<subdomain>.srv.kllnr.de`.
+* **SSL Resolvers**: Use `dns_certresolver` and entrypoint `websecure`.

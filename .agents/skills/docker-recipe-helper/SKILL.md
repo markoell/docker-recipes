@@ -1,11 +1,11 @@
 ---
 name: docker-recipe-helper
-description: Helper skill to validate, analyze, and manage Docker recipes, including checking for copy-paste label errors, invalid volumes, or compose syntax errors.
+description: Helper skill to validate, analyze, and manage Docker recipes with strict security checks (read-only, capability drops, isolated networks).
 ---
 
 # Docker Recipe Helper Skill
 
-This skill helps validate and manage Docker recipes in this repository.
+This skill helps validate and enforce strict security standards for Docker recipes in this repository.
 
 ## Commands
 
@@ -18,10 +18,12 @@ python3 .agents/skills/docker-recipe-helper/scripts/validate_recipes.py
 ```
 
 ### What It Validates
-1. **Compose Configuration Presence**: Checks if each subfolder contains `compose.yaml`. The legacy name `docker-compose.yml` is flagged.
-2. **YAML Parsing**: Ensures all compose files are syntactically valid YAML.
-3. **Deprecated Syntax**: Ensures the obsolete `version` header is removed.
-4. **Traefik Router Consistency**: Validates that any Traefik labels (e.g. `traefik.http.routers.<router-name>`) use router names matching either the service name or the folder name. It checks for the correct certresolver (`dns_certresolver`) and domain (`.srv.kllnr.de`).
-5. **Volume Path Standards**: Detects hardcoded host paths and warns if they do not use the standard `${DATA_PATH}` environment variable or are not relative (`./data`, `./config`). It allows whitelisted system paths (`/proc`, `/sys`, etc.) for monitoring services.
-6. **Network Routing**: Checks that Traefik-exposed services are attached to the `proxy` network.
-
+1. **Compose Name**: Enforces `compose.yaml` (forbids `docker-compose.yml` and `version` headers).
+2. **Strict Security & Isolation**:
+   - Ensures `user: "${PUID}:${PGID}"` is defined.
+   - Ensures `cap_drop: - ALL` is defined for all services.
+   - Ensures `read_only: true` is defined.
+   - Ensures `tmpfs` mounts are present for transient state.
+3. **Network Isolation**: Ensures exposed services use isolated proxy networks named `<recipe_name>_proxy`, instead of a shared global network. It flags any service still using the shared `proxy` network.
+4. **Volume Mounts**: Warns about absolute host paths. Restricts persistent mounts to relative paths or `${DATA_PATH}`.
+5. **Traefik Labels**: Validates router names, `dns_certresolver`, and the `.srv.kllnr.de` domain.
