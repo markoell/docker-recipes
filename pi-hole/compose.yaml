@@ -1,5 +1,3 @@
-version: "3"
-
 # More info at https://github.com/pi-hole/docker-pi-hole/ and https://docs.pi-hole.net/
 services:
   pihole:
@@ -20,11 +18,6 @@ services:
     networks:
       external-vlan:
         ipv4_address: 192.168.7.241
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.duplicati.rule=Host(`pihole.omv.kllnr.de`)"
-      - "traefik.http.routers.duplicati.entrypoints=websecure"
-      - "traefik.http.routers.duplicati.tls.certresolver=omv_certresolver"
     restart: unless-stopped
 
 networks:

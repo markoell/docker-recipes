@@ -18,7 +18,10 @@ python3 .agents/skills/docker-recipe-helper/scripts/validate_recipes.py
 ```
 
 ### What It Validates
-1. **Compose Configuration Presence**: Checks if each subfolder contains `docker-compose.yml` or `compose.yaml`.
+1. **Compose Configuration Presence**: Checks if each subfolder contains `compose.yaml`. The legacy name `docker-compose.yml` is flagged.
 2. **YAML Parsing**: Ensures all compose files are syntactically valid YAML.
-3. **Traefik Router Consistency**: Validates that any Traefik labels (e.g. `traefik.http.routers.<router-name>`) use router names that match either the service name or the folder name. It flags copy-paste errors (like using `duplicati` as a router name in `pi-hole`).
-4. **Volume Path Placeholders**: Detects absolute paths on the host and suggests using the standard `CHANGE_TO_COMPOSE_DATA_PATH/<recipe-name>/...` placeholder.
+3. **Deprecated Syntax**: Ensures the obsolete `version` header is removed.
+4. **Traefik Router Consistency**: Validates that any Traefik labels (e.g. `traefik.http.routers.<router-name>`) use router names matching either the service name or the folder name. It checks for the correct certresolver (`dns_certresolver`) and domain (`.srv.kllnr.de`).
+5. **Volume Path Standards**: Detects hardcoded host paths and warns if they do not use the standard `${DATA_PATH}` environment variable or are not relative (`./data`, `./config`). It allows whitelisted system paths (`/proc`, `/sys`, etc.) for monitoring services.
+6. **Network Routing**: Checks that Traefik-exposed services are attached to the `proxy` network.
+

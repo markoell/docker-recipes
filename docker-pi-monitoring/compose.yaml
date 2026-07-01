@@ -15,11 +15,12 @@ services:
       - TZ=${TZ}
     networks:
       - internal
+      - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.duplicati.rule=Host(`monitor.omv.kllnr.de`)"
-      - "traefik.http.routers.duplicati.entrypoints=websecure"
-      - "traefik.http.routers.duplicati.tls.certresolver=omv_certresolver"
+      - "traefik.http.routers.grafana.rule=Host(`monitor.srv.kllnr.de`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=dns_certresolver"
     depends_on:
       - prometheus
 
@@ -87,8 +88,6 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=1y'
-      # /!\ Uncomment the following line to set a size limit for the Prometheus database /!\
-#      - '--sotrage.tsdb.retention.size=10GB'
     expose:
       - 9090
     networks:
@@ -107,3 +106,5 @@ services:
 networks:
   internal:
     driver: bridge
+  proxy:
+    external: true

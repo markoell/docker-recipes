@@ -20,6 +20,28 @@ def print_warn(msg):
 def print_info(msg):
     print(f"{BLUE}INFO:{RESET} {msg}")
 
+# Whitelisted system paths that monitoring or special daemon services are allowed to bind-mount.
+WHITELISTED_SYSTEM_PATHS = [
+    '/',
+    '/var/run',
+    '/var/run/docker.sock',
+    '/proc',
+    '/sys',
+    '/dev',
+    '/etc/machine-id',
+    '/var/lib/docker'
+]
+
+def is_system_path_whitelisted(path):
+    # Strip any volume mount options like :ro, :rw, :z, etc.
+    clean_path = path.split(':')[0]
+    if clean_path != '/':
+        clean_path = clean_path.rstrip('/')
+    for whitelisted in WHITELISTED_SYSTEM_PATHS:
+        if clean_path == whitelisted or clean_path.startswith(whitelisted + '/'):
+            return True
+    return False
+
 def validate_recipe(recipe_dir, compose_file):
     recipe_name = os.path.basename(recipe_dir)
     errors = 0
@@ -36,16 +58,58 @@ def validate_recipe(recipe_dir, compose_file):
         print_err(f"[{recipe_name}] Invalid compose format in {os.path.basename(compose_file)}")
         return 1, 0
 
+    # 1. Check for deprecated 'version' header
+    if 'version' in data:
+        print_err(f"[{recipe_name}] Deprecated 'version' header is present in {os.path.basename(compose_file)}")
+        errors += 1
+
     services = data.get('services', {})
     if not isinstance(services, dict):
         print_err(f"[{recipe_name}] 'services' section must be a dictionary")
         return 1, 0
 
+    # Validate global networks
+    global_networks = data.get('networks', {})
+    has_global_proxy_network = False
+    if isinstance(global_networks, dict) and 'proxy' in global_networks:
+        proxy_config = global_networks['proxy']
+        if isinstance(proxy_config, dict) and proxy_config.get('external') is True:
+            has_global_proxy_network = True
+        elif proxy_config is None: # empty dict or value
+            # For Traefik's own compose, it defines it but not as external.
+            has_global_proxy_network = True
+
     for service_name, service_config in services.items():
         if not service_config or not isinstance(service_config, dict):
             continue
 
-        # 1. Validate Traefik labels
+        # 2. Check host network mode vs ports
+        net_mode = service_config.get('network_mode')
+        ports = service_config.get('ports', [])
+        if net_mode == 'host' and ports:
+            print_err(f"[{recipe_name}] Service '{service_name}' specifies network_mode: 'host' but also defines 'ports', which is ignored and syntactically invalid")
+            errors += 1
+
+        # 3. Validate PUID / PGID / TZ in environment
+        env = service_config.get('environment', [])
+        env_dict = {}
+        if isinstance(env, list):
+            for item in env:
+                if isinstance(item, str) and '=' in item:
+                    k, v = item.split('=', 1)
+                    env_dict[k.strip()] = v.strip()
+        elif isinstance(env, dict):
+            env_dict = env
+
+        for var_name in ['PUID', 'PGID', 'TZ']:
+            val = env_dict.get(var_name)
+            if val is not None:
+                expected_placeholder = f"${{{var_name}}}"
+                if val != expected_placeholder and val != f"${var_name}":
+                    print_warn(f"[{recipe_name}] Service '{service_name}' has hardcoded environment variable {var_name}='{val}' instead of standard placeholder '{expected_placeholder}'")
+                    warnings += 1
+
+        # 4. Validate Traefik labels & Proxy network requirement
         labels = service_config.get('labels', [])
         label_pairs = {}
         if isinstance(labels, list):
@@ -56,41 +120,79 @@ def validate_recipe(recipe_dir, compose_file):
         elif isinstance(labels, dict):
             label_pairs = labels
 
+        is_traefik_enabled = False
         for k, v in label_pairs.items():
+            if k == 'traefik.enable' and v == 'true':
+                is_traefik_enabled = True
+
             if k.startswith('traefik.http.routers.'):
                 parts = k.split('.')
                 if len(parts) >= 4:
                     router_name = parts[3]
-                    # Check if router_name is inconsistent
-                    # Ignore standard wildcard or matching patterns
+                    
+                    # Validate router name consistency
                     normalized_recipe = recipe_name.replace('-', '').lower()
                     normalized_service = service_name.replace('-', '').lower()
                     normalized_router = router_name.replace('-', '').lower()
 
                     if normalized_router != normalized_recipe and normalized_router != normalized_service:
-                        # Extra check: is it duplicati? Or just a general mismatch?
-                        if normalized_router == 'duplicati' and normalized_recipe != 'duplicati':
-                            print_err(f"[{recipe_name}] Service '{service_name}' uses copy-pasted Traefik router name '{router_name}' in label '{k}'")
-                            errors += 1
-                        else:
-                            print_warn(f"[{recipe_name}] Service '{service_name}' uses router name '{router_name}' in label '{k}' which does not match recipe folder or service name")
-                            warnings += 1
+                        print_err(f"[{recipe_name}] Service '{service_name}' uses mismatched/copy-pasted Traefik router name '{router_name}' in label '{k}'")
+                        errors += 1
 
-        # 2. Validate volumes
+                    # Validate domain (.srv.kllnr.de)
+                    if parts[-1] == 'rule':
+                        # Check Host rule value
+                        if 'Host(' in v:
+                            if '.srv.kllnr.de' not in v:
+                                print_err(f"[{recipe_name}] Service '{service_name}' uses wrong routing domain in label '{k}={v}'. Must use '<subdomain>.srv.kllnr.de'")
+                                errors += 1
+
+                    # Validate certresolver
+                    if parts[-1] == 'certresolver':
+                        if v != 'dns_certresolver':
+                            print_err(f"[{recipe_name}] Service '{service_name}' uses wrong certresolver '{v}' in label '{k}'. Must use 'dns_certresolver'")
+                            errors += 1
+
+        # 5. Check if service is connected to proxy network when Traefik is enabled
+        if is_traefik_enabled and recipe_name != 'traefik':
+            service_networks = service_config.get('networks', [])
+            is_connected_to_proxy = False
+            if isinstance(service_networks, list):
+                is_connected_to_proxy = 'proxy' in service_networks
+            elif isinstance(service_networks, dict):
+                is_connected_to_proxy = 'proxy' in service_networks
+
+            if not is_connected_to_proxy:
+                print_err(f"[{recipe_name}] Service '{service_name}' is enabled for Traefik but is not connected to the 'proxy' network")
+                errors += 1
+
+            if not has_global_proxy_network:
+                print_err(f"[{recipe_name}] Service '{service_name}' uses the 'proxy' network but the network is not defined globally as external in this compose file")
+                errors += 1
+
+        # 6. Validate volumes
         volumes = service_config.get('volumes', [])
         if isinstance(volumes, list):
             for volume in volumes:
                 if isinstance(volume, str):
                     parts = volume.split(':')
                     host_path = parts[0]
-                    # Check if it's a host path
+
+                    # Warn about old placeholder
+                    if 'CHANGE_TO_COMPOSE_DATA_PATH' in host_path:
+                        print_err(f"[{recipe_name}] Service '{service_name}' uses outdated placeholder 'CHANGE_TO_COMPOSE_DATA_PATH' in volume mount '{volume}'")
+                        errors += 1
+                        continue
+
+                    # Check absolute host path
                     if host_path.startswith('/'):
-                        # Allowed system files
-                        if host_path in ['/var/run/docker.sock', '/var/run/docker.sock:ro']:
-                            continue
-                        if not host_path.startswith('CHANGE_TO_COMPOSE_DATA_PATH'):
-                            print_warn(f"[{recipe_name}] Service '{service_name}' uses hardcoded host path '{host_path}' instead of placeholder 'CHANGE_TO_COMPOSE_DATA_PATH'")
+                        if not is_system_path_whitelisted(host_path):
+                            print_warn(f"[{recipe_name}] Service '{service_name}' uses hardcoded host path '{host_path}' instead of environment variable '${{DATA_PATH}}' or a relative path")
                             warnings += 1
+                    # Check if it starts with home dir shortcut
+                    elif host_path.startswith('~'):
+                        print_warn(f"[{recipe_name}] Service '{service_name}' uses home directory path '{host_path}' instead of environment variable '${{DATA_PATH}}' or a relative path")
+                        warnings += 1
 
     return errors, warnings
 
@@ -115,16 +217,27 @@ def main():
             continue
 
         recipe_count += 1
+        
+        # Check for compose.yaml files. Warn if using docker-compose.yml
         compose_file = None
-        for name in ['docker-compose.yml', 'compose.yaml']:
-            path = os.path.join(item_path, name)
-            if os.path.exists(path):
-                compose_file = path
-                break
+        has_legacy = os.path.exists(os.path.join(item_path, 'docker-compose.yml'))
+        has_modern = os.path.exists(os.path.join(item_path, 'compose.yaml'))
 
+        if has_modern:
+            compose_file = os.path.join(item_path, 'compose.yaml')
+            if has_legacy:
+                print_err(f"[{item}] Contains BOTH compose.yaml and legacy docker-compose.yml. Remove docker-compose.yml")
+                total_errors += 1
+        elif has_legacy:
+            print_err(f"[{item}] Contains legacy 'docker-compose.yml' instead of 'compose.yaml'. Rename it")
+            total_errors += 1
+            compose_file = os.path.join(item_path, 'docker-compose.yml')
+        
         if not compose_file:
-            print_warn(f"[{item}] No docker-compose.yml or compose.yaml found in recipe folder")
-            total_warnings += 1
+            # Only warn if it's not a known directory that doesn't need compose files (like opencloud if it's not a recipe)
+            if item != 'opencloud':
+                print_warn(f"[{item}] No compose.yaml found in recipe folder")
+                total_warnings += 1
             continue
 
         err, warn = validate_recipe(item_path, compose_file)

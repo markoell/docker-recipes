@@ -1,5 +1,4 @@
 # https://crazymax.dev/diun/install/docker/
-version: "3.5"
 services:
   diun:
     image: crazymax/diun:latest
@@ -27,5 +26,5 @@ services:
       - "DIUN_NOTIF_MAIL_FROM=${FROM}"
       - "DIUN_NOTIF_MAIL_TO=${TO}"
     labels:
-            - diun.enable=true
+      - diun.enable=true
     restart: unless-stopped
