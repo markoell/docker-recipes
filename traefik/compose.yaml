@@ -1,39 +1,56 @@
-# https://doc.traefik.io/traefik/
+---
 services:
-  reverse-proxy:
-    # The official v2 Traefik docker image
-    image: traefik:v2.11
+  traefik:
+    image: traefik:v3.7
     container_name: traefik
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
+    restart: unless-stopped
+    user: "${PUID}:${PGID}"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+
+    ports:
+      - "80:8080"
+      - "443:8443"
+
+    volumes:
+      - "${DATA_PATH}/traefik/letsencrypt:/letsencrypt"
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
     command:
-      #- "--log.level=DEBUG"
-      #- "--accesslog=true"
-      - "--api.insecure=true"
+      # EntryPoints
+      - "--entrypoints.web.address=:8080"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      - "--entrypoints.websecure.address=:8443"
+      - "--entrypoints.websecure.http.tls=true"
+
+      # Providers 
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=proxy"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      - "--certificatesresolvers.dns_certresolver.acme.httpChallenge.entryPoint=web"
-      - "--certificatesresolvers.dns_certresolver.acme.email=omv_contact@kllnr.de"
-      - "--certificatesresolvers.dns_certresolver.acme.storage=/letsencrypt/acme.json"
-    ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"
-    volumes:
-      - ${DATA_PATH}/traefik/letsencrypt:/letsencrypt
-      # So that Traefik can listen to the Docker events
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-    networks:
-      - proxy
-    restart: unless-stopped
+      # - "--providers.docker.network=proxy"
 
-networks:
-  proxy:
-    name: proxy
+      # API & Dashboard 
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+
+      # Observability 
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      # - "--metrics.prometheus=true"
+
+      # ... other command arguments ...
+      - "--certificatesresolvers.dns_certresolver.acme.email=${EMAIL}"
+      - "--certificatesresolvers.dns_certresolver.acme.storage=/letsencrypt/acme.json" # Path inside container volume
+      - "--certificatesresolvers.dns_certresolver.acme.httpchallenge.entrypoint=web"
+
+      # - "--certificatesresolvers.dns_certresolver.acme.dnschallenge.provider=your-dns-provider" # Needs provider setup
+
+      # Optionally make 'dns_certresolver' the default resolver for TLS-enabled routers
+      - "--entrypoints.websecure.http.tls.certresolver=dns_certresolver"
