@@ -1,4 +1,3 @@
-version: "2.1"
 services:
   resilio-sync:
     image: lscr.io/linuxserver/resilio-sync:latest
@@ -10,13 +9,20 @@ services:
     volumes:
       - ./config:/config
       - ${SSD}/data/resilio-sync/downloads:/downloads
-      - CHANGE_TO_COMPOSE_DATA_PATH/resilio-sync/sync:/sync
+      - ${DATA_PATH}/resilio-sync/sync:/sync
     ports:
       - 8888:8888
       - 55555:55555
+    networks:
+      - default
+      - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.resilio-sync.rule=Host(`resilio-sync.omv.kllnr.de`)"
+      - "traefik.http.routers.resilio-sync.rule=Host(`resilio-sync.srv.kllnr.de`)"
       - "traefik.http.routers.resilio-sync.entrypoints=websecure"
-      - "traefik.http.routers.resilio-sync.tls.certresolver=omv_certresolver"
+      - "traefik.http.routers.resilio-sync.tls.certresolver=dns_certresolver"
     restart: unless-stopped
+
+networks:
+  proxy:
+    external: true

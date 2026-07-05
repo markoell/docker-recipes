@@ -5,13 +5,13 @@ services:
     # Note: Check the recommend version here: https://docs.nextcloud.com/server/latest/admin_manual/installation/system_requirements.html#server
     image: mariadb:lts
     command: --transaction-isolation=READ-COMMITTED
-    restart: always
+    restart: unless-stopped
     volumes:
       - db:/var/lib/mysql:Z
     environment:
-      - PUID=${APPUSER_PUID}
-      - PGID=${APPUSER_PGID}
-      - TZ=${TIME_ZONE_VALUE}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
       - MARIADB_AUTO_UPGRADE=1
       - MARIADB_DISABLE_UPGRADE_BACKUP=1
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
@@ -23,23 +23,23 @@ services:
   # https://hub.docker.com/_/redis
   redis:
     image: redis:alpine
-    restart: always
+    restart: unless-stopped
     environment:
-      - PUID=${APPUSER_PUID}
-      - PGID=${APPUSER_PGID}
-      - TZ=${TIME_ZONE_VALUE}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
 
   app:
     image: nextcloud:32.0-fpm-alpine
-    restart: always
+    restart: unless-stopped
     volumes:
       - nextcloud:/var/www/html:z
-      - ${PATH_TO_DATA}/nextcloud/data:/data
+      - ${DATA_PATH}/nextcloud/data:/data
       # NOTE: The `volumes` config of the `cron` and `app` containers must match
     environment:
-      - PUID=${APPUSER_PUID}
-      - PGID=${APPUSER_PGID}
-      - TZ=${TIME_ZONE_VALUE}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - MYSQL_USER=${MYSQL_USER}
@@ -53,7 +53,7 @@ services:
   # https://hub.docker.com/_/nginx/
   web:
     image: nginx:alpine-slim
-    restart: always
+    restart: unless-stopped
     ports:
       - 127.0.0.1:8080:80
     volumes:
@@ -61,30 +61,33 @@ services:
       - ./web/nginx.conf:/etc/nginx/nginx.conf:ro  
       # NOTE: The `volumes` included below should match those of the `app` container (unless you know what you're doing)
       - nextcloud:/var/www/html:z,ro
+    networks:
+      - default
+      - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.nextcloud.rule=Host(`nextcloud.omv.kllnr.de`)"
+      - "traefik.http.routers.nextcloud.rule=Host(`nextcloud.srv.kllnr.de`)"
       - "traefik.http.routers.nextcloud.entrypoints=websecure"
-      - "traefik.http.routers.nextcloud.tls.certresolver=omv_certresolver"
+      - "traefik.http.routers.nextcloud.tls.certresolver=dns_certresolver"
     environment:
-      - PUID=${APPUSER_PUID}
-      - PGID=${APPUSER_PGID}
-      - TZ=${TIME_ZONE_VALUE}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
     depends_on:
       - app
 
   cron:
     image: nextcloud:32.0-fpm-alpine
-    restart: always
+    restart: unless-stopped
     volumes:
       - nextcloud:/var/www/html:z
-      - ${PATH_TO_DATA}/nextcloud/data:/data
+      - ${DATA_PATH}/nextcloud/data:/data
       # NOTE: The `volumes` config of the `cron` and `app` containers must match
     entrypoint: /cron.sh
     environment:
-      - PUID=${APPUSER_PUID}
-      - PGID=${APPUSER_PGID}
-      - TZ=${TIME_ZONE_VALUE}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
     depends_on:
       - db
       - redis
@@ -92,3 +95,7 @@ services:
 volumes:
   db:
   nextcloud:
+
+networks:
+  proxy:
+    external: true

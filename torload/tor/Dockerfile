@@ -4,9 +4,8 @@ FROM alpine:3.17
 EXPOSE 9050
 
 # update the package repository and install Tor
-RUN apk update && \
-    apk upgrade && \
-    apk add tor
+RUN apk upgrade --no-cache && \
+    apk add --no-cache tor
 
 # << Enable this section when tor is accessed from host >>
 # Copy over the torrc created above and set the owner to `tor`

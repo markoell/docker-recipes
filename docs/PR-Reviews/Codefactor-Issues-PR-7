@@ -1,0 +1,13 @@
+[CodeFactor](https://www.codefactor.io/repository/github/markoell/docker-recipes) found multiple issues:
+
+#### Probable insecure usage of temp file/directory.
+- [ ]  [.agents\skills\docker-recipe-helper\scripts\validate_recipes.py:112](https://github.com/markoell/docker-recipes/blob/2182654350b9617a2105504127ccadc7918da8b5/.agents/skills/docker-recipe-helper/scripts/validate_recipes.py#L112)
+Commit 2182654350b9617a2105504127ccadc7918da8b5
+
+#### Complex Method
+- [ ]  [.agents\skills\docker-recipe-helper\scripts\validate_recipes.py:45-197](https://github.com/markoell/docker-recipes/blob/50881489900f8bbeedf712fcca7c73032fcc5f0d/.agents/skills/docker-recipe-helper/scripts/validate_recipes.py#L45-L197)
+Commit 50881489900f8bbeedf712fcca7c73032fcc5f0d
+
+#### Use the `--no-cache` switch to avoid the need to use `--update` and remove `/var/cache/apk/*` when done installing packages.
+- [ ]  [torload\tor\Dockerfile:7](https://github.com/markoell/docker-recipes/blob/50881489900f8bbeedf712fcca7c73032fcc5f0d/torload/tor/Dockerfile#L7)
+Commit 50881489900f8bbeedf712fcca7c73032fcc5f0d
