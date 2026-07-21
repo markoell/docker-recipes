@@ -5,6 +5,8 @@ services:
     container_name: traefik
     restart: unless-stopped
     user: "${PUID}:${PGID}"
+    group_add:
+      - "${DOCKER_GID}"
     read_only: true
     cap_drop:
       - ALL
@@ -20,7 +22,7 @@ services:
     volumes:
       - "${DATA_PATH}/traefik/letsencrypt:/letsencrypt"
       # So that Traefik can listen to the Docker events
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock
 
     command:
       # EntryPoints
