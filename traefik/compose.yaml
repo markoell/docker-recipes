@@ -56,3 +56,11 @@ services:
 
       # Optionally make 'dns_certresolver' the default resolver for TLS-enabled routers
       - "--entrypoints.websecure.http.tls.certresolver=dns_certresolver"
+
+    networks:
+      - default
+      - resilio-sync_proxy
+
+networks:
+  resilio-sync_proxy:
+    external: true
