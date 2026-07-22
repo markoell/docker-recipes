@@ -16,8 +16,9 @@ services:
       - /tmp
 
     ports:
-      - "80:8080"
-      - "443:8443"
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
 
     volumes:
       - "${DATA_PATH}/traefik/letsencrypt:/letsencrypt"
@@ -26,11 +27,11 @@ services:
 
     command:
       # EntryPoints
-      - "--entrypoints.web.address=:8080"
+      - "--entrypoints.web.address=:80"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
-      - "--entrypoints.websecure.address=:8443"
+      - "--entrypoints.websecure.address=:443"
       - "--entrypoints.websecure.http.tls=true"
 
       # Providers 
