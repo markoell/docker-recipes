@@ -40,7 +40,7 @@ services:
 
       # API & Dashboard 
       - "--api.dashboard=true"
-      - "--api.insecure=true"
+      - "--api.insecure=false"
 
       # Observability 
       - "--log.level=INFO"
@@ -67,8 +67,8 @@ services:
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.tls=true"
       # Basic‑auth middleware
-      #- "traefik.http.middlewares.dashboard-auth.basicauth.users=${CREDENTIALS}"
-      #- "traefik.http.routers.dashboard.middlewares=dashboard-auth@docker"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${CREDENTIALS}"
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth@docker"
 
     networks:
       - proxy
