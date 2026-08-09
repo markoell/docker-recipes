@@ -1,0 +1,28 @@
+services:
+  dockhand:
+    image: fnsys/dockhand:latest
+    container_name: dockhand
+    restart: unless-stopped
+    group_add:
+      - "999" #Docker Socket access
+    user: "${PUID:-3000}:${PGID:-3000}"
+    environment:
+      - TZ={TZ:-Europe/Berlin}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/app/data
+      - ./compose.yaml:/docker/dockhand/compose.yaml
+      - ./.env:/docker/dockhand/.env
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dockhand.rule=Host(`${DOMAIN:-dockhand.srv.kllnr.de}`)"
+      - "traefik.http.routers.dockhand.entrypoints=websecure"
+      - "traefik.http.routers.dockhand.tls=true"
+      - "traefik.http.routers.dockhand.tls.certresolver=letsencrypt"
+      - "traefik.http.services.dockhand.loadbalancer.server.port=3000"
+
+networks:
+  proxy:
+    external: true

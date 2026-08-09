@@ -16,13 +16,13 @@ services:
       - /tmp
 
     ports:
-      - "80:80"
-      - "443:443"
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
 
     volumes:
-      - "${DATA_PATH}/traefik/letsencrypt:/letsencrypt"
+      - "${AMCME_CERTS_DIR:-./letsencrypt}:/letsencrypt"
       # So that Traefik can listen to the Docker events
-      - /var/run/docker.sock:/var/run/docker.sock
+      - "${DOCKER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock:ro"
 
     command:
       # EntryPoints
@@ -39,16 +39,16 @@ services:
       - "--providers.docker.network=proxy"
 
       # API & Dashboard 
-      - "--api.dashboard=true"
-      - "--api.insecure=false"
+      - "--api.dashboard=${DASHBOARD:-false}"
+      - "--api.insecure=${INSECURE:-false}"
 
       # Observability 
-      - "--log.level=INFO"
-      - "--accesslog=true"
+      - "--log.level=${LOG_LEVEL:-ERROR}"
+      - "--accesslog=${ACCESS_LOG:-true}"
       # - "--metrics.prometheus=true"
 
       # ... other command arguments ...
-      - "--certificatesresolvers.dns_certresolver.acme.email=${EMAIL}"
+      - "--certificatesresolvers.dns_certresolver.acme.email=${ACME_MAIL:-example@example.org}"
       - "--certificatesresolvers.dns_certresolver.acme.storage=/letsencrypt/acme.json" # Path inside container volume
       - "--certificatesresolvers.dns_certresolver.acme.httpchallenge.entrypoint=web"
 
@@ -62,17 +62,22 @@ services:
       - "traefik.enable=true"
 
       # Dashboard router
-      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_DOMAIN}`)"
+      - "traefik.http.routers.dashboard.rule=Host(`${DOMAIN:-traefik.test}`)"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.tls=true"
       # Basic‑auth middleware
-      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${CREDENTIALS}"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${BASIC_AUTH_USERS:-admin:$$apr1$$4vqie50r$$YQAmQdtmz5n9rEALhxJ4l.}"
       - "traefik.http.routers.dashboard.middlewares=dashboard-auth@docker"
 
     networks:
-      - proxy
-
+      proxy:
+        aliases:
+          #used for external stacks
+          - ${COLLABORA_DOMAIN:-collabora.opencloud.test}
+          - ${EURO_OFFICE_DOMAIN:-euro-office.opencloud.test}
+          - ${KEYCLOAK_DOMAIN:-keycloak.opencloud.test}
+          - ${OC_DOMAIN:-cloud.opencloud.test}
 networks:
   proxy:
     external: true
