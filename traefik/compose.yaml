@@ -48,14 +48,14 @@ services:
       # - "--metrics.prometheus=true"
 
       # ... other command arguments ...
-      - "--certificatesresolvers.dns_certresolver.acme.email=${ACME_MAIL:-example@example.org}"
-      - "--certificatesresolvers.dns_certresolver.acme.storage=/letsencrypt/acme.json" # Path inside container volume
-      - "--certificatesresolvers.dns_certresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt_certresolver.acme.email=${ACME_MAIL:-example@example.org}"
+      - "--certificatesresolvers.letsencrypt_certresolver.acme.storage=/letsencrypt/acme.json" # Path inside container volume
+      - "--certificatesresolvers.letsencrypt_certresolver.acme.httpchallenge.entrypoint=web"
 
-      # - "--certificatesresolvers.dns_certresolver.acme.dnschallenge.provider=your-dns-provider" # Needs provider setup
+      # - "--certificatesresolvers.letsencrypt_certresolver.acme.dnschallenge.provider=your-dns-provider" # Needs provider setup
 
-      # Optionally make 'dns_certresolver' the default resolver for TLS-enabled routers
-      - "--entrypoints.websecure.http.tls.certresolver=dns_certresolver"
+      # Optionally make 'letsencrypt_certresolver' the default resolver for TLS-enabled routers
+      - "--entrypoints.websecure.http.tls.certresolver=letsencrypt_certresolver"
       # Traefik Dynamic configuration via Docker labels
     labels:
       # Enable self‑routing
