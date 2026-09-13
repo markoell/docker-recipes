@@ -1,3 +1,4 @@
+---
 services:
   dockhand:
     image: fnsys/dockhand:latest
@@ -8,6 +9,8 @@ services:
     user: "${PUID:-3000}:${PGID:-3000}"
     environment:
       - TZ={TZ:-Europe/Berlin}
+    ports:
+      - 3000:3000
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data:/app/data
@@ -20,7 +23,7 @@ services:
       - "traefik.http.routers.dockhand.rule=Host(`${DOMAIN:-dockhand.srv.kllnr.de}`)"
       - "traefik.http.routers.dockhand.entrypoints=websecure"
       - "traefik.http.routers.dockhand.tls=true"
-      - "traefik.http.routers.dockhand.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dockhand.tls.certresolver=letsencrypt_certresolver"
       - "traefik.http.services.dockhand.loadbalancer.server.port=3000"
 
 networks:
