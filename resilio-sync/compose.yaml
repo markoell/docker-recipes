@@ -11,7 +11,7 @@ services:
       - /run
       - /var/run
     environment:
-      TZ: ${TZ}
+      TZ: ${TZ:-Europe/Berlin}
     volumes:
       - ./config:/config
       - ${DATA_PATH:-./downloads}/downloads:/downloads
