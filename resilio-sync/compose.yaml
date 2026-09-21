@@ -19,7 +19,7 @@ services:
     ports:
       - "55555:55555"
     networks:
-      - resilio-sync_proxy
+      - proxy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.resilio-sync.rule=Host(`${DOMAIN:-resilio-sync.localhost}`)"
