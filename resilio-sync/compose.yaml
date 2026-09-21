@@ -2,7 +2,7 @@ services:
   resilio-sync:
     image: lscr.io/linuxserver/resilio-sync:latest
     container_name: resilio-sync
-    user: "${PUID}:${PGID}"
+    user: "${PUID:-3000}:${PGID:-3000}"
     cap_drop:
       - ALL
     read_only: true
@@ -11,26 +11,23 @@ services:
       - /run
       - /var/run
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
+      TZ: ${TZ}
     volumes:
       - ./config:/config
-      - ${SSD}/data/resilio-sync/downloads:/downloads
-      - ${DATA_PATH}/resilio-sync/sync:/sync
+      - ${DATA_PATH:-./downloads}/downloads:/downloads
+      - ${DATA_PATH:-./sync}/sync:/sync
     ports:
-      - 8888:8888
-      - 55555:55555
+      - "55555:55555"
     networks:
-      - default
       - resilio-sync_proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.resilio-sync.rule=Host(`resilio-sync.srv.kllnr.de`)"
+      - "traefik.http.routers.resilio-sync.rule=Host(`${DOMAIN:-resilio-sync.localhost}`)"
       - "traefik.http.routers.resilio-sync.entrypoints=websecure"
-      - "traefik.http.routers.resilio-sync.tls.certresolver=dns_certresolver"
+      - "traefik.http.routers.resilio-sync.tls.certresolver=letsencrypt_certresolver"
+      - "traefik.http.services.resilio-sync.loadbalancer.server.port=8888"
     restart: unless-stopped
 
 networks:
-  resilio-sync_proxy:
+  proxy:
     external: true
