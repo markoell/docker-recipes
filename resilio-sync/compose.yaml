@@ -4,10 +4,13 @@ services:
     container_name: resilio-sync
     cap_drop:
       - ALL
+    cap_add:
+      - SETUID
+      - SETGID
     read_only: true
     tmpfs:
       - /tmp
-      - /run
+      - /run:exec
       - /var/run
     environment:
       # linuxserver.io images are not compatible with user: in Compose. 
