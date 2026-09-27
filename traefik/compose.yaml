@@ -66,6 +66,7 @@ services:
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.${TRAEFIK_SERVICES_TLS_CONFIG:-tls.certresolver=dns_certresolver}"
       # Basic‑auth middleware
       - "traefik.http.middlewares.dashboard-auth.basicauth.users=${BASIC_AUTH_USERS:-admin:$$apr1$$4vqie50r$$YQAmQdtmz5n9rEALhxJ4l.}"
       - "traefik.http.routers.dashboard.middlewares=dashboard-auth@docker"
