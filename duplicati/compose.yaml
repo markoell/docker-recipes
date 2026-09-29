@@ -3,21 +3,25 @@ services:
     image: lscr.io/linuxserver/duplicati:latest
     container_name: duplicati
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
+      # linuxserver.io images are not compatible with user: in Compose. 
+      # They handle user remapping themselves via PUID/PGID environment variables — but only if the container starts as root and s6 performs the drop.
+      # https://docs.linuxserver.io/misc/non-root/
+      PUID: ${PUID:-3000}
+      PGID: ${PGID:-3000}
+      TZ: ${TZ:-Europe/Berlin}
     volumes:
       - ./config:/config
-      - ${DATA_PATH}/duplicati/backups:/backups
-      - ${DATA_PATH}:/source
+      - ${BACKUPS_PATH:-./backups}:/backups
+      - ${SOURCE_PATH:-.}:/source
+      - ${SOURCE2_PATH:-.}:/source2
+      - ${SOURCE3_PATH:-.}:/source3
     networks:
-      - default
       - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.duplicati.rule=Host(`duplicati.srv.kllnr.de`)"
+      - "traefik.http.routers.duplicati.rule=Host(`${DOMAIN:-duplicati.localhost`)"
       - "traefik.http.routers.duplicati.entrypoints=websecure"
-      - "traefik.http.routers.duplicati.tls.certresolver=dns_certresolver"
+      - "traefik.http.routers.duplicati.${TRAEFIK_SERVICES_TLS_CONFIG:-tls.certresolver=dns_certresolver}"
     restart: unless-stopped
 
 networks:
