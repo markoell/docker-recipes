@@ -19,7 +19,7 @@ services:
       - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.duplicati.rule=Host(`${DOMAIN:-duplicati.localhost`)"
+      - "traefik.http.routers.duplicati.rule=Host(`${DOMAIN:-duplicati.localhost}`)"
       - "traefik.http.routers.duplicati.entrypoints=websecure"
       - "traefik.http.routers.duplicati.${TRAEFIK_SERVICES_TLS_CONFIG:-tls.certresolver=dns_certresolver}"
     restart: unless-stopped
