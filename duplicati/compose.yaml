@@ -11,7 +11,7 @@ services:
       TZ: ${TZ:-Europe/Berlin}
     volumes:
       - ./config:/config
-      - ${BACKUPS_PATH:-./backups}:/backups
+      - ./backups:/backups
       - ${SOURCE_PATH:-.}:/source
       - ${SOURCE2_PATH:-.}:/source2
       - ${SOURCE3_PATH:-.}:/source3
