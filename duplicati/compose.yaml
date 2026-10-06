@@ -9,6 +9,9 @@ services:
       PUID: ${PUID:-3000}
       PGID: ${PGID:-3000}
       TZ: ${TZ:-Europe/Berlin}
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY}
+      CLI_ARGS: ${CLI_ARGS:-} #optional
+      DUPLICATI__WEBSERVICE_PASSWORD: ${DUPLICATI__WEBSERVICE_PASSWORD:-} #optional
     volumes:
       - ./config:/config
       - ./backups:/backups
